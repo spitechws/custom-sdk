@@ -1,0 +1,30 @@
+---remove files from windows
+ 
+DEL /S /Q falcon.php   
+DEL /S /Q *.log 
+DEL /S /Q *.db 
+DEL /S /Q error_log
+DEL /S /Q *.bkp
+
+
+chmod -R 777 /var/www
+
+sudo chown -R 1000:1000 var/logs
+sudo chown -R www-data:www-data var/cache
+
+
+
+
+sudo service apache2 restart
+
+mysql -p -u root legacyreal < country-state-city.sql
+
+---DOCKER--
+docker-compose run --rm php chown -R www-data:www-data var/cache/dev
+
+docker-compose run --rm php chown -R 1000:1000 var/cache/dev
+
+
+
+
+

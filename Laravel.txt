@@ -1,0 +1,1022 @@
+<?php
+
+
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL;
+use App\Models\Module;
+use Illuminate\Support\Facades\DB;
+use App\Models\UserAction;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
+
+
+function tech_stack()
+{
+    return [
+        'Bootstrap v5.1.3' => "https://getbootstrap.com/docs/5.1/",
+        'Laravel 9.x' => 'https://laravel.com/docs/9.x/configuration'
+    ];
+}
+
+
+function user()
+{
+    $model = User::with(['role'])->find(Auth::user()->id);
+    return $model;
+}
+
+
+/**
+ * convert_to : Converts given value into required $format
+ *
+ * @param  mixed $value
+ * @param  mixed $format
+ * @return void
+ */
+function convert_to($value, $format)
+{
+    if ($format == 'date') {
+        $value = date(config('global.date_format'), strtotime($value));
+    }
+    return $value;
+}
+
+
+function show_image($img_name, $attributes = [], $is_responsive = 0, $show_path = 0)
+{
+    $attr = '';
+    if (is_array($attributes)) {
+        if (empty($attributes['class'])) {
+            $attributes['class'] = 'thumbnail';
+        }
+        if ($is_responsive == 0) {
+            if (empty($attributes['width'])) {
+                $attributes['width'] = '100';
+            }
+            if (empty($attributes['height'])) {
+                $attributes['height'] = '100';
+            }
+        }
+
+
+        foreach ($attributes as $prop => $value) {
+            $attr .= $prop . '="' . $value . '"';
+        }
+    }
+
+
+    $file_path = public_path($img_name);
+    if ($show_path) {
+        echo $file_path;
+    }
+    if (!file_exists($file_path) || is_dir($file_path)) {
+        $src = url('common/images/no-image.jpg');
+    } else {
+        $src = uploaded_file_url($img_name);
+    }
+
+
+    $html = '<img src="' . $src . '"  ' . $attr . '/>';
+
+
+    echo $html;
+}
+
+
+
+function current_route()
+{
+    return request()->route()->uri;
+}
+
+
+
+
+function app_security($data, $action = "encrypt")
+{
+    if ($action == "encrypt") {
+        return Crypt::encryptString($data);
+    } else {
+        return Crypt::decryptString($data);
+    }
+}
+
+
+function sub_string($string, $length = 100)
+{
+    if (strlen($string) > $length) {
+        return substr($string, 0, ($length - 3)) . '...';
+    } else {
+        return $string;
+    }
+}
+
+
+function get_wish()
+{
+    date_default_timezone_set('Asia/Calcutta');
+    // 24-hour format of an hour without leading zeros (0 through 23)
+    $Hour = date('G');
+    if ($Hour >= 5 && $Hour <= 11) {
+        return "Good Morning";
+    } else if ($Hour >= 12 && $Hour <= 18) {
+        return "Good Afternoon";
+    } else if ($Hour >= 19 || $Hour <= 4) {
+        return "Good Evening";
+    }
+}
+
+
+
+
+function debug($args, $die = 1)
+{
+    echo "<pre>";
+    print_r($args);
+    echo "</pre>";
+    if ($die) {
+        exit;
+    }
+    /*
+Laravel Query Debug
+//\Illuminate\Support\Facades\DB::enableQueryLog(); // Enable query log
+        //dd(\Illuminate\Support\Facades\DB::getQueryLog()); // Show results of log
+*/
+}
+
+
+function set_message($msg, $type = 'success')   // type= 'danger', 'warning', 'success', 'info'
+{
+    Session::flash($type, $msg);
+}
+
+
+
+function show_success()
+{
+    if (Session::has('success')) {
+        echo '<div class="flash-message"><p class="alert alert-success">' . Session::get("success") . '</p></div>';
+    }
+}
+
+
+function show_message($errors = '')
+{
+    $message = '';
+    if (is_object($errors) && $errors->count()) {
+        foreach ($errors->all() as $error) {
+            $message .= '<p class="alert alert-danger">' . $error . '</p>';
+        }
+    } else if (Session::has('success')) {
+        $message = '<p class="alert alert-success">' . Session::get("success") . '</p>';
+    } else if (Session::has('error')) {
+        $message = '<p class="alert alert-danger">' . Session::get("error") . '</p>';
+    }
+
+
+    if (!empty($message)) {
+        echo '<div class="flash-message">' . $message . '</div>';
+    }
+}
+
+
+function base_url()
+{
+    return URL::to('/') . '/';
+}
+
+
+function day_diff($from_date, $to_date)
+{
+    $date1 = new DateTime($to_date);
+    $date2 = new DateTime($from_date);  // 2022-01-31 format is needed
+    $interval = $date1->diff($date2);
+
+
+    $y = $interval->y;
+    $m = $interval->m;
+    $d = $interval->d + 1;
+    return [
+        'years' => $interval->y + 1,
+        'months' => $interval->m + 1,
+        'days' => $interval->d + 1,
+    ];
+}
+
+
+
+function experience($from_date, $to_date)
+{
+    $date1 = new DateTime($to_date);
+    $date2 = new DateTime($from_date);  // 2022-01-31 format is needed
+    $interval = $date1->diff($date2);
+
+
+    $y = $interval->y;
+    $m = $interval->m;
+    $string = '';
+    if ($y > 0) {
+        $string .= $y . ' Y ';
+    }
+    if ($m > 0) {
+        $string .= $m . ' M';
+    }
+    return $string;
+}
+
+
+// $relative_file_url = uploads/customer/photo/MI1ciye3spDCFvpHE0UXFXG4B29PsXKP9zVtkAY7.jpg
+function uploaded_file_url($uploads_file_url)
+{
+    $url = '';
+    if (!empty($uploads_file_url)) {
+        $url = url($uploads_file_url);
+    }
+    return $url;
+}
+
+
+function delete_media($uploads_file_path)
+{
+    $file_path = public_path($uploads_file_path);
+    if (file_exists($file_path) && !is_dir($file_path)) {
+        //unlink($file_path);
+        File::delete($file_path);
+    }
+}
+
+
+function upload_media($file, $dir = '', $old_file_storage_path = '')
+{
+    $extenstion = $file->getClientOriginalExtension();
+    $filename = time() . '.' . $extenstion;
+    $upload_dir = env('UPLOAD_DIR') . '/' . $dir;
+    $upload_path = public_path($upload_dir);
+    if (!empty($old_file_storage_path)) {
+        delete_media($old_file_storage_path);
+    }
+    $file->move($upload_path, $filename);
+    return  $upload_dir . '/' . $filename;
+}
+
+
+
+function youtube_video_show($video_id, $width, $height)
+{
+    $html = '<iframe width="' . $width . '" height="' . $height . '" src="https://www.youtube.com/embed/' . $video_id . '"
+        title="YouTube video player" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+    </iframe>';
+    echo $html;
+}
+
+
+function get_active($left, $right)
+{
+    if ($left == $right) {
+        echo "active";
+    }
+}
+
+
+function show_menu($left, $right)
+{
+    if ($left == $right) {
+        echo "show";
+    }
+}
+
+
+function banner_modules()
+{
+    return ['course' => 'Course'];
+}
+
+
+function get_sn()
+{
+    $page_size = config('global.page_limit');
+    $sn = 1;
+    if (!empty($_GET['page']) && $_GET['page'] > 1) {
+        $sn = $page_size * ($_GET['page'] - 1) + 1;
+    }
+    return $sn;
+}
+
+
+
+function show_favicon()
+{
+    $html = '<link rel="icon" type="image/x-icon" href="' . asset('common/images/logo.png') . '" />
+    <link rel="apple-touch-icon" type="image/x-icon" href="' . asset('common/images/logo.png') . '" />';
+    echo $html;
+}
+
+
+
+
+function isAdmin()
+{
+    return isset(Auth::user()->id) ? true : false;
+}
+
+
+function admin()
+{
+    return Auth::user();
+}
+
+
+function convert_string_to_db_column($string)
+{
+    return strtolower(str_replace(' ', '_', $string));
+}
+
+
+
+function lat_long_distance($lat1, $lon1, $lat2, $lon2, $unit = 'K')
+{
+    $theta = $lon1 - $lon2;
+    $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+    $dist = acos($dist);
+    $dist = rad2deg($dist);
+    $miles = $dist * 60 * 1.1515;
+    $unit = strtoupper($unit);
+
+
+    if ($unit == "K") {
+        return ($miles * 1.609344);
+    } else if ($unit == "N") {
+        return ($miles * 0.8684);
+    } else {
+        return $miles;
+    }
+}
+
+
+
+function address_type_enum()
+{
+    return [
+        'Home' => 'Home',
+        'Work' => 'Work',
+        'Hotel' => 'Hotel',
+        'Friends & Family' => 'Friends & Family',
+        'Other' => 'Other'
+    ];
+}
+
+
+
+function status_enum()
+{
+    return [
+        'Active' => 'Active',
+        'Inactive' => 'Inactive'
+    ];
+}
+
+
+function banner_related_enum()
+{
+    return [
+        'offer' => 'offer',
+        'product' => 'product'
+    ];
+}
+
+
+function interest_type()
+{
+    return [
+        'Like' => 'Like',
+        'Dislike' => 'Dislike',
+        'Search' => 'Search',
+    ];
+}
+
+
+function product_status_enum()
+{
+    return [
+        'IN-STOCK' => 'IN-STOCK',
+        'OUT-STOCK' => 'OUT-STOCK'
+    ];
+}
+
+
+function yes_no_enum()
+{
+    return [
+        'No' => 'No',
+        'Yes' => 'Yes'
+    ];
+}
+
+
+function gender_enum()
+{
+    return [
+        'Male' => 'Male',
+        'Female' => 'Female',
+        'Prefer Not To Specify' => 'Prefer Not To Specify'
+    ];
+}
+
+
+
+function order_status_enum()
+{
+    return [
+        'Placed' => 'Placed',
+        'Processing' => 'Processing',
+        'Dispatched' => 'Dispatched',
+        'Delivered' => 'Delivered',
+    ];
+}
+
+
+function payment_mode_enum()
+{
+    return [
+        'COD' => 'COD',
+        'ONLINE' => 'ONLINE'
+    ];
+}
+
+
+function date_format_list()
+{
+    return [
+        'Y-m-d'           => '2023-09-18',
+        'd/m/Y'           => '18/09/2023',
+        'F j, Y'          => 'September 18, 2023',
+        'l, M d, Y g:i A' => 'Sunday, Sep 18, 2023 3:45 PM',
+        // Add more formats as needed
+    ];
+}
+
+
+function datetime_format_list()
+{
+    return [
+        'Y-m-d h:i:s A'           => '2023-09-18 11:20:12 AM/PM',
+        'l, M d, Y g:i A' => 'Sunday, Sep 18, 2023 3:45 PM',
+    ];
+}
+
+
+function next_sku()
+{
+    $sql = 'select max(sku)+1 as next_sku from product';
+    $data = DB::select($sql);
+    if (!empty($data[0]) && !empty($data[0]->next_sku)) {
+        return $data[0]->next_sku;
+    } else {
+        return 1;
+    }
+}
+
+
+function generate_vendor_code()
+{
+    $next_vendor_id = 1;
+    $sql = 'select max(id)+1 as next_vendor_id from vendor';
+    $data = DB::select($sql);
+    if (!empty($data[0]) && !empty($data[0]->next_vendor_id)) {
+        $next_vendor_id = $data[0]->next_vendor_id;
+    }
+    $code = strtoupper(Str::random(8)) . $next_vendor_id;
+    return $code;
+}
+
+
+function config_item($key = 'app.url')
+{
+    return Config::get($key);
+}
+
+
+
+function get_count($tbl_name, $aWhere = [])
+{
+    $model = DB::table($tbl_name)
+        ->selectRaw('count(*) as row_count')
+        ->where($aWhere)
+        ->first();
+    return $model->row_count;
+}
+
+
+function get_sum($tbl_name, $field_name, $aWhere = [])
+{
+    $model = DB::table($tbl_name)
+        ->select(DB::raw('SUM(' . $field_name . ') AS sum_value'))
+        ->where($aWhere)
+        ->first();
+    if (!empty($model->sum_value) && $model->sum_value > 0) {
+        return $model->sum_value;
+    } else {
+        return 0;
+    }
+}
+
+
+function save_user_action($action, $details = '')
+{
+    $model = new UserAction();
+    $model->action = $action;
+    $model->details = '';
+    $model->user_id = Auth::user()->id;
+    $model->save();
+}
+
+
+
+
+function menu()
+{
+    $module_group = DB::table('module_group')->orderBy('sequence_no', 'asc')->get();
+    foreach ($module_group as $key => $value) {
+        $module_group[$key]->module = DB::table('module')->where(['group_id' => $value->id])->orderBy('title', 'asc')->get();
+    }
+    return $module_group;
+}
+
+
+
+//---ads
+function get_ads($id)
+{
+    $model = DB::table('ads')->find($id);
+    if (!empty($model->id)) {
+        $img_src = uploaded_file_url($model->image);
+        $hrml = '<a class="ps-collection" href="' . $model->redirect_url . '">';
+        $hrml .= '<img src="' . $img_src . '" alt="' . $model->title . '" title="' . $model->title . '">';
+        $hrml .= '</a>';
+    } else {
+        $hrml = 'adds with id:' . $id . ' not found';
+    }
+
+
+    echo $hrml;
+}
+
+
+function get_ads_size()
+{
+    return [
+        '1230_425' => '1230_425',
+        '1090_245' => '1090_245',
+        '530_245' => '530_245',
+        '487_379' => '487_379',
+        '530_285' => '530_285',
+    ];
+}
+
+
+function cart_count()
+{
+    $count = 0;
+    if (!empty(customer()->id)) {
+        $count = get_count('cart_item', ['customer_id' => customer()->id]);
+    }
+    return $count;
+}
+
+
+function wish_list_count()
+{
+    $count = 0;
+    if (!empty(customer()->id)) {
+        $count = get_count('customer_wish_list', ['customer_id' => customer()->id]);
+    }
+    return $count;
+}
+
+
+function cart_items()
+{
+    $data = [];
+
+
+    return $data;
+}
+
+
+
+function related_blog_list()
+{
+}
+
+
+
+function get_module()
+{
+    $module_url = '';
+    $route = request()->route()->uri;
+    $route = explode('/', $route);
+    if (isset($route[0]) && isset($route[1])) {
+        $module_url = $route[0] . '/' . $route[1];
+    }
+    $model = Module::where(['route' => $module_url])->first();
+    return $model;
+}
+
+
+
+/********************
+script helper
+ ********************/
+
+
+//----css adding----------
+
+
+$GLOBALS['aDefaultCSS'] = array(
+    'fonts/Linearicons/Linearicons/Font/demo-files/demo.css',
+    'plugins/font-awesome/css/font-awesome.min.css',
+    'plugins/bootstrap/css/bootstrap.min.css',
+    'plugins/owl-carousel/assets/owl.carousel.min.css',
+    'plugins/owl-carousel/assets/owl.theme.default.min.css',
+    'plugins/slick/slick/slick.css',
+    'plugins/nouislider/nouislider.min.css',
+    'plugins/lightGallery-master/dist/css/lightgallery.min.css',
+    'plugins/jquery-bar-rating/dist/themes/fontawesome-stars.css',
+    'plugins/select2/dist/css/select2.min.css',
+    'css/style.css',
+    'css/farmershop.css'
+);
+
+
+function get_css()
+{
+    $aDefaultCSS = $GLOBALS['aDefaultCSS'];
+    $html = '';
+    foreach ($aDefaultCSS as $css_file) {
+        $url = base_url() . 'frontend/' . $css_file;
+        $html .= '<link rel="stylesheet" href="' . $url . '">' . "\n";
+    }
+    echo $html;
+}
+
+
+function add_css($css)
+{
+    $aDefaultCSS = $GLOBALS['aDefaultCSS'];
+    if (is_array($css)) {
+        array_merge($aDefaultCSS, $css);
+    } elseif ($css != "") {
+        array_push($aDefaultCSS, $css);
+    }
+    $GLOBALS['aDefaultCSS'] = $aDefaultCSS;
+}
+
+
+
+//--------javascript-------------
+$GLOBALS['aDefaultJS'] = array(
+    'plugins/nouislider/nouislider.min.js',
+    'plugins/popper.min.js',
+    'plugins/owl-carousel/owl.carousel.min.js',
+    'plugins/bootstrap/js/bootstrap.min.js',
+    'plugins/imagesloaded.pkgd.min.js',
+    'plugins/masonry.pkgd.min.js',
+    'plugins/isotope.pkgd.min.js',
+    'plugins/jquery.matchHeight-min.js',
+    'plugins/slick/slick/slick.min.js',
+    'plugins/jquery-bar-rating/dist/jquery.barrating.min.js',
+    'plugins/slick-animation.min.js',
+    'plugins/lightGallery-master/dist/js/lightgallery-all.min.js',
+    'plugins/sticky-sidebar/dist/sticky-sidebar.min.js',
+    'plugins/select2/dist/js/select2.full.min.js',
+    'plugins/gmap3.min.js',
+    'js/main.js'
+);
+
+
+function get_js()
+{
+    $aDefaultJS = $GLOBALS['aDefaultJS'];
+    $html = '';
+    foreach ($aDefaultJS as $file) {
+        $url = base_url() . 'frontend/' . $file;
+        $html .= '<script src="' . $url . '"></script>' . "\n";
+    }
+    echo $html;
+}
+
+
+function add_js($files)
+{
+    $aDefaultJS = $GLOBALS['aDefaultJS'];
+    if (is_array($files)) {
+        array_merge($aDefaultJS, $files);
+    } elseif ($files != "") {
+        array_push($aDefaultJS, $files);
+    }
+    $GLOBALS['aDefaultJS'] = $aDefaultJS;
+}
+
+
+
+//------------Others
+
+
+function selected_select($left, $right, $return = false)
+{
+    if ($left == $right) {
+        if ($return) {
+            return 'selected';
+        } else {
+            echo 'selected';
+        }
+    }
+}
+function form_button($option = ['save_cancel'])
+{
+    //debug($option);
+    $module_url = Config::get('app.url');
+    if (!empty($option['url'])) {
+        $module_url .= $option['url'] . '/';
+    }
+    $btn = empty($option['btn']) ? 'save_cancel' : $option['btn'];
+    $html = '';
+
+
+    $pk = empty($option['id']) ? '0' : $option['id'];
+    $edit_url = $module_url . 'add/' . $pk;
+    $delete_url = $module_url . 'delete/' . $pk;
+    $view_url = $module_url . 'view/' . $pk;
+    if ($btn == 'edit_delete') {
+        $html .= '<a href="' . $edit_url . '" class="btn btn-sm btn-primary action-edit"><i class="bi bi-pencil-square"></i></a>';
+        $html .= '&nbsp;&nbsp;<a onClick="return confirm(\'Are you sure want to delete this record?\')" href="' . $delete_url . '" class="btn btn-sm btn-danger action-delete"><i class="bi bi-trash"></i></a>';
+    } else if ($btn == 'edit_view') {
+        $html .= '<a href="' . $view_url . '" class="btn btn-sm btn-primary"><i class="bi bi-credit-card-2-front"></i></a>';
+        $html .= '&nbsp;&nbsp;<a href="' . $edit_url . '" class="btn btn-sm btn-primary action-edit"><i class="bi bi-pencil-square"></i></a>';
+    } else  if ($btn == 'delete') {
+        $html .= '<a onClick="return confirm(\'Are you sure want to delete this record?\')" href="' . $delete_url . '" class="btn btn-sm btn-danger action-delete">Delete</a>';
+    } else if ($btn == 'save_cancel') {
+        $html .= '<button type="submit" class="btn btn-sm btn-success">Save</button>';
+        $html .= '&nbsp;&nbsp;<a href="' . $module_url . '" class="btn btn-sm btn-danger">Cancel</a>';
+    } else if ($btn == 'close') {
+        $html .= '&nbsp;&nbsp;<a href="' . $module_url . '" class="btn btn-sm btn-danger">Close</a>';
+    } else if ($btn == 'view') {
+        $html .= '<a href="' . $view_url . '" class="btn btn-sm btn-primary"><i class="bi bi-credit-card-2-front"></i></a>';
+    } else if ($btn == 'edit') {
+        $html .= '<a href="' . $edit_url . '" class="btn btn-sm btn-primary action-edit"><i class="bi bi-pencil-square"></i></a>';
+    } else if ($btn == 'close') {
+        $html .= '&nbsp;&nbsp;<a href="' . $module_url . '" class="btn btn-sm btn-danger">Close</a>';
+    } else if ($btn == 'save') {
+        $html .= '<button type="submit" class="btn btn-sm btn-success">Save</button>';
+    }
+    echo  $html;
+}
+
+
+function form_dropdown($name, array $aOptions, $selected_value, $htmlOptions = [])
+{
+    $htmlOptions['id'] = $name;
+    $htmlOptions['name'] = $name;
+    $htmlOptions['class'] = 'form-select';
+    $attribute = '';
+    foreach ($htmlOptions as $property => $value) {
+        $attribute .= $property . '="' . $value . '" ';
+    }
+
+
+    $html = '<select ' . $attribute . '>';
+    foreach ($aOptions as $key => $value) {
+        $selected = ($key == $selected_value) ? 'selected' : '';
+        $html .= '<option value="' . $key . '"  ' . $selected . '>' . $value . '</option>';
+    }
+    $html .= '</select>';
+    return $html;
+}
+
+
+function form_text($name, $default_value = '', $attribute = '')
+{
+    $html = '<input  type="text"  id="' . $name . '" name="' . $name . '"  value="' . $default_value . '" '    . $attribute . '/>';
+    return $html;
+}
+
+
+
+function form_hidden($name, $default_value = '', $attribute = '')
+{
+    $html = '<input  type="hidden"  id="' . $name . '" name="' . $name . '"  value="' . $default_value . '" '    . $attribute . '/>';
+    return $html;
+}
+
+
+function form_open($action = '', array $aAttribute = [])
+{
+    $attribute = '';
+    if (!empty($action)) {
+        $aAttribute['action'] = $action;
+    }
+    foreach ($aAttribute as $key => $value) {
+        $attribute .= $key . '="' . $value . '"';
+    }
+
+
+    $html = '<form ' . $attribute . '>';
+    return $html;
+}
+
+
+function form_close()
+{
+    $html = '</form>';
+    return $html;
+}
+
+
+
+function generate_rating_stars($filled_rating = 2)
+{
+    if ($filled_rating > 0) {
+        $total = 5;
+        $html = '<select class="ps-rating" data-read-only="true">';
+        for ($i = 1; $i <= $filled_rating; $i++) {
+            $html .= '<option value="1">1</option>';
+        }
+        for ($i = 1; $i <= ($total - $filled_rating); $i++) {
+            $html .= '<option value="0">1</option>';
+        }
+        $html .= '</select>';
+        $html .= '<span>' . $filled_rating . '</span>';
+        echo $html;
+    }
+}
+
+
+function site_breadcrumb($aData)
+{
+    //debug($aData);
+    $items = '';
+    foreach ($aData as $key => $value) {
+        if (!empty($key)) {
+            $items .= '<li><a href="' . url($key) . '">Shop</a></li>';
+        } else {
+            $items .= '<li>' . $value . '</li>';
+        }
+    }
+
+
+
+    $html = '
+    <div class="ps-breadcrumb">
+    <div class="container">
+        <ul class="breadcrumb"><li><a href="' . base_url() . '">Home</a></li>' . $items . '</ul>
+    </div>
+    </div>';
+    echo $html;
+}
+
+
+
+function simple_ckeditor($sInputId, $sWidth, $sLanguage = 'en')
+{
+
+
+?>
+    <!--<script type="text/javascript" src="<?php echo base_url(); ?>ckeditor/ckeditor.js"></script>-->
+    <script type="text/javascript">
+        CKEDITOR.replace('<?php echo $sInputId; ?>', {
+            toolbar: 'Basic',
+            language: '<?php echo $sLanguage; ?>',
+            enterMode: CKEDITOR.ENTER_BR,
+            width: '<?php echo $sWidth; ?>'
+        });
+    </script>
+<?php
+}
+
+
+function full_ckeditor($sInputId, $sWidth, $sHeight, $isOnBlurValue = '', $sLanguage = 'en')
+{
+    // script_tag('tinymce/jscripts/tiny_mce/tiny_mce.js');
+?>
+
+
+    <script type="text/javascript">
+        CKEDITOR.replace('<?php echo $sInputId; ?>', {
+            toolbar: 'Full',
+            width: '<?php echo $sWidth; ?>',
+            height: '<?php echo $sHeight; ?>',
+            language: '<?php echo $sLanguage; ?>',
+            enterMode: CKEDITOR.ENTER_BR
+        });
+        <?php if ($isOnBlurValue != '') { ?>
+            CKEDITOR.instances.<?php echo $sInputId; ?>.on('blur', function(e) {
+                var ckValue = $(CKEDITOR.instances['<?php echo $sInputId; ?>'].getData()).text();
+                if (ckValue == '') {
+                    var ckValue = CKEDITOR.instances.<?php echo $sInputId; ?>.getData(); //alert(ckValue2);
+                }
+                var len = ckValue.length;
+                if (len >= 160) {
+                    $("#<?php echo $isOnBlurValue; ?>").val(ckValue.substring(0, 160));
+                } else {
+                    $("#<?php echo $isOnBlurValue; ?>").val(ckValue);
+                }
+            });
+
+
+
+        <?php } ?>
+    </script>
+<?php
+}
+
+
+
+function form_error($errors, $control_name)
+{
+    if ($errors->has($control_name)) {
+        echo ' <span class="text-danger">' . $errors->first($control_name) . '</span>';
+    }
+}
+
+function slug($title, $separator = '-') {
+    // Convert the title to lowercase
+    $slug = strtolower($title);
+    
+    // Remove non-alphanumeric characters and replace spaces with the separator
+    $slug = preg_replace('/[^a-z0-9]+/', $separator, $slug);
+    
+    // Remove leading and trailing separator characters
+    $slug = trim($slug, $separator);
+    
+    return $slug;
+}
+
+function meta_tags($cms)
+{
+
+    $html = '
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="theme-color" content="#ff8a00">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="' . config('app.name') . '">';
+    if (!empty($cms->meta_description)) {
+        $html .= '<meta name="description" content="' . $cms->meta_description . '">';
+    }
+    if (!empty($cms->meta_keywords)) {
+        $html .= '<meta name="keywords" content="' . $cms->meta_keywords . '">';
+    }
+    return $html;
+}
+
+
+
+
+
+//------------settings-------------
+@extends('layouts.admin.admin')
+@section('content')
+    <div class="conatiner">
+        {{ show_message($errors) }}
+        <form method="post" enctype="multipart/form-data">
+            @csrf
+            <div class="row">
+                @php
+                    $aSetting = [
+                        'site_name' => 'Site Name',
+                        'page_limit' => 'Page Limit',
+                        'facebook' => 'Facebook',
+                        'linkedin' => 'Linked In',
+                        'youtube' => 'Youtube',
+                    ];
+                @endphp
+                @foreach ($aSetting as $key => $label)
+                    <div class="col-lg-6 col-12">
+                        <label for="{{ $key }}" class="col-lg-2 col-form-label">{{ $label }}</label>
+                        <div class="col-lg-9">
+                            @php
+                                $data = old($key);
+                                if (!empty($model->$key)) {
+                                    $data = $model->$key;
+                                }
+                            @endphp
+                            <input type="text" class="form-control" id="{{ $key }}" name="{{ $key }}"
+                                value="{{ $data }}">
+                        </div>
+                    </div>
+                @endforeach
+                <div class="row mt-3">
+                    <div class="col-lg-12">
+                        {{ form_button(['btn' => 'save', 'url' => 'admin/setting']) }}
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+@endsection

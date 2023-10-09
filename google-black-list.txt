@@ -1,0 +1,8 @@
+You can refer to this article on how the domain can be removed from the Google Black List:
+https://www.namecheap.com/support/knowledgebase/article.aspx/9351/2194/google-malicious-content--hints-on-how-to-remove-it
+
+-------------
+Here you can check if the domain is present in the Black List: https://transparencyreport.google.com/safe-browsing/search
+
+-------------
+You can also contact Google directly specifying your issue via this link: https://safebrowsing.google.com/safebrowsing/report_error/?hl=en-USc

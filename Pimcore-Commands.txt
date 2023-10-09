@@ -1,0 +1,14 @@
+
+
+--install bundles -
+
+Step1: They can be installed by installing pimcore/ecommerce-framework-bundle via composer, 
+
+Step2: adding PimcoreEcommerceFrameworkBundle to config/bundles.php 
+
+Step3: running the install command bin/console pimcore:bundle:install PimcoreEcommerceFrameworkBundle.
+
+
+--other commands ---
+
+php bin/console cache:clear
