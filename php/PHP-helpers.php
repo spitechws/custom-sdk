@@ -242,6 +242,13 @@ function send_spitech_mail($aParam)
 }
 
 
+function generate_slug($title) {   
+    $slug = strtolower($title);
+    $slug = preg_replace('/[^\p{L}\p{N}]+/u', '-', $slug);
+    $slug = trim($slug, '-');    
+    return $slug;
+}
+
 
 /***************************
  *  JSON DECODE
