@@ -190,56 +190,6 @@ $config['sess_regenerate_destroy'] = FALSE;
 
 
 
-/******************************
- *  EMAIL API
- * ****************************/
-
-//$arrParam = array(
-//    "to" => "",   // Example: "Bob <bob@host.com>". You can use commas to separate multiple recipients.
-//    "subject" => "",
-//    "message" => "",    
-//    "cc" => "",
-//    "bcc" => "",
-//    "attachment" => ""  // physical path of file
-//);
-function send_spitech_mail($aParam)
-{
-    if (isset($aParam['attachment']) && !empty($aParam['attachment'])) {
-        $file = __DIR__ . "\\" . $aParam['attachment'];
-        $mime = mime_content_type($file);
-        $info = pathinfo($file);
-        $name = $info['basename'];
-        $output = new CURLFile($file, $mime, $name);
-        $aParam["file"] = $output;
-    }
-    $url = 'http://spitech.in/';
-    $url .= 'global_api/send_email';
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $aParam);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $headers = array(
-        "Content-Type: multipart/form-data",
-        "Accept: application/json",
-    );
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    $response = curl_exec($ch);
-    $response = json_decode($response, TRUE);
-    curl_close($ch);
-    $curl_error = curl_error($ch);
-    $result = "failed";
-    if ($curl_error == "") {
-        if (isset($response['status']) && $response['status'] == "1") {
-            $result = "success";
-        } else {
-            $result = $response['message'];
-        }
-    } else {
-        $result = "Send Mail Error:" . $curl_error;
-    }
-    return $result;
-}
 
 
 function generate_slug($title) {   
@@ -286,6 +236,10 @@ CI-3 BASE URL AND ROOT PATH SETUP
  **********************************************/
 
 //root index.php
+function is_localhost()
+{
+    return $_SERVER['REMOTE_ADDR'] == '::1' || $_SERVER['REMOTE_ADDR'] == '127.0.0.1';
+}
 function get_base_url($environment = 'development')
 {
     if ($environment == 'production') {
@@ -307,3 +261,37 @@ if (is_localhost()) {
 //config/config.php
 $config['base_url'] = get_base_url(ENVIRONMENT);
 $config['root_path'] = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR;
+
+
+//create dummy image in php8
+ protected function createDummyImage($width, $height, $backgroundColor = [0, 0, 0], $textColor = [255, 255, 255], $text = 'Dummy Image')
+    {
+        // Create a blank image
+        $image = imagecreatetruecolor($width, $height);
+
+        // Allocate background color
+        $bgColor = imagecolorallocate($image, $backgroundColor[0], $backgroundColor[1], $backgroundColor[2]);
+        imagefill($image, 0, 0, $bgColor);
+
+        // Allocate text color
+        $txtColor = imagecolorallocate($image, $textColor[0], $textColor[1], $textColor[2]);
+
+        // Add text to the image
+        $fontPath = __DIR__ . '/arial.ttf'; // Path to a TrueType font
+        $fontSize = 20; // Adjust font size as needed
+        $textBox = imagettfbbox($fontSize, 0, $fontPath, $text);
+        $textWidth = $textBox[2] - $textBox[0];
+        $textHeight = $textBox[7] - $textBox[1];
+        $x = ($width - $textWidth) / 2;
+        $y = ($height - $textHeight) / 2;
+        imagettftext($image, $fontSize, 0, $x, $y, $txtColor, $fontPath, $text);
+
+        // Save the image to a file
+        $filePath = self::DATA_DIRECTORY . 'dummy_image.png';
+        imagepng($image, $filePath);
+
+        // Clean up
+        imagedestroy($image);
+
+        return $filePath;
+    }
